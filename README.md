@@ -1,23 +1,24 @@
 # Computer_Science - My Strava Analysis
 
 ## Description
-Ce projet vise à importer mes données de course depuis mon compte Strava pour les analyser. Cette analyse sera divisée en plusieurs objectifs :
-- Importer mes données de course et météo et les stocker dans le bon format
-- Déterminer les facteurs clés influençant la vitesse et la fatigue
-- Réaliser des prédictions de performance et comparer les modèles de prédiction (physiologique vs machine learning)
-- Évaluer le surentraînement
+This project aims to import my running data from my Strava account for analysis. The analysis will be divided into several objectives:
+- Importing my running and weather data and storing it in the correct format
+- Determining key factors that influence speed and fatigue
+- Making performance predictions and comparing prediction models (physiological vs machine learning)
+- Evaluating overtraining
 
 ## User Guide
 - `Main.py`
-- `import_data.py` *(contient les classes suivantes :)*
-  - `Class Activity` → à compléter
-  - `Class Runner` → à compléter
-  - `Class Weather` → à compléter
+- `import_data.py` *(contains the following classes:)*
+  - `Class Activity` → to complete
+  - `Class Runner` → to complete
+  - `Class Weather` → to complete
 - `post_processing.py`
 
-## Liens
+## Links
 - [Enduraw website](https://enduraw-data.com)
 - [A paper describing the Paris Olympics marathon performance](https://shorturl.at/V8ryZ)
 - [An article dealing with trail pacing plan](https://shorturl.at/5Z1Yd)
+
 
 
