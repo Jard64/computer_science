@@ -14,11 +14,13 @@ This project aims to import my running data from my Strava account for analysis.
   - `Class Runner` → to complete
   - `Class Weather` → to complete
 - `post_processing.py`
+- `import.py`
 
 ## Links
 - [Enduraw website](https://enduraw-data.com)
 - [A paper describing the Paris Olympics marathon performance](https://shorturl.at/V8ryZ)
 - [An article dealing with trail pacing plan](https://shorturl.at/5Z1Yd)
+- [Description of the GAP metric](https://pickletech.eu/blog-gap/)
 
 
 
