@@ -1,20 +1,51 @@
-from __future__ import print_function
-import time
-import swagger_client
-from swagger_client.rest import ApiException
-from pprint import pprint
 
-# Configure OAuth2 access token for authorization: strava_oauth
-swagger_client.configuration.access_token = '96f194676c4cdae3bb3fdfc9007a4a98e964f952'
+import stravalib
+import os
+from time import time
+from stravalib import Client
 
-# create an instance of the API class
-api_instance = swagger_client.ActivitiesApi()
-id = 789 # Long | The identifier of the activity.
-includeAllEfforts = True # Boolean | To include all segments efforts. (optional)
+#Set your client_id
+MY_STRAVA_CLIENT_ID = int(os.environ.get('CLIENT_ID'))
 
-try: 
-    # Get Activity
-    api_response = api_instance.getActivityById(id, includeAllEfforts=includeAllEfforts)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling ActivitiesApi->getActivityById: %s\n" % e)
+#Set your client_secret
+MY_STRAVA_CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+
+client = Client()
+url = client.authorization_url(
+    client_id=MY_STRAVA_CLIENT_ID,
+    redirect_uri="http://localhost:500/authorization",
+)
+
+print(url)
+
+client = Client()
+
+#Use this token to make API calls
+access_token='293a195f57891526a13cc67ada60e6c1048ed9d6'
+client.access_token = access_token
+
+#Use this token to keep your session alive
+last_refresh_token = 'b693d8a9ef901c1b90955dc1a4b16cdab141c55d'
+client.refresh_token = last_refresh_token
+
+#Initial expiration time
+client.token_expires_at = 1763034879
+
+if time() > client.token_expires_at:
+    refresh_response = client.refresh_access_token(
+        client_id=MY_STRAVA_CLIENT_ID,
+        client_secret="TON_CLIENT_SECRET",
+        refresh_token=client.refresh_token
+    )
+    access_token = refresh_response["access_token"]
+    expires_at = refresh_response["expires_at"]
+    refresh_token = refresh_response["refresh_token"]
+
+client.access_token = access_token
+
+athlete = client.get_athlete()
+print(f"Athlete: {athlete.firstname} {athlete.lastname}")
+
+
+
+
