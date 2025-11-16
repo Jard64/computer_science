@@ -15,14 +15,14 @@ This project aims to import my running data from my Strava account for analysis.
     Analysis of the global performance evolution based on average data of each activity
 - `specific_activity_analysis.py`
     Aims to focus on the activities stream i.e. the temporal series of 
-      - Heartrate
-      - Speed
-      - Pace
-      - Elevation
-      - Power
-      - Cadence
-      - Smooth velocity
-      - Temperature
+      - Heartrate 
+      - Speed 
+      - Pace 
+      - Elevation 
+      - Power 
+      - Cadence 
+      - Smooth velocity 
+      - Temperature 
 
 ## Links
 - [Enduraw website](https://enduraw-data.com)
