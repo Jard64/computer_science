@@ -29,18 +29,11 @@ def refresh_if_needed(tokens):
     
 
 
-    # Try both methods next time to see the difference
-    response = client.refresh_access_token(
+    new_tokens = client.refresh_access_token(
         client_id=tokens["client_id"],
         client_secret=tokens["client_secret"],
         refresh_token=tokens["refresh_token"]
     )
-    print(response)    
-
-    
-
-    new_tokens = response.json()
-
     tokens["access_token"] = new_tokens["access_token"]
     tokens["refresh_token"] = new_tokens["refresh_token"]
     tokens["expires_at"] = new_tokens["expires_at"]

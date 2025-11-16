@@ -111,8 +111,46 @@ def get_average_speed():
     avg_speed=avg_speed[::-1]
     return avg_speed
 
+def get_elevation_gain():
+    activities=client.get_activities()
+    elevation_gain=np.array([])
+    for a in activities:
+        if a.type=='Run' and a.moving_time>1200 and a.total_elevation_gain is not None and a.average_heartrate is not None:
+            elevation_gain=np.append(elevation_gain,a.total_elevation_gain)
+    elevation_gain=elevation_gain[::-1]
+    return elevation_gain
 
-#Overall plots
+def get_temperature():
+    activities=client.get_activities()
+    temperature=np.array([])
+    for a in activities:
+        if a.type=='Run' and a.moving_time>1200 and a.average_temp is not None and a.average_heartrate is not None:
+            temperature=np.append(temperature,a.average_temp)
+    temperature=temperature[::-1]
+    return temperature
+
+
+def personal_best_evolution(distance_km=10,min_time=3000):
+    activities=client.get_activities()
+    activities=list(activities)
+    activities.reverse()
+    personal_best_time=[min_time]
+    list_potential_pb=[]
+    for a in activities:
+        if a.type=='Run':
+            if a.moving_time>1200 and a.average_speed>12/3.6:
+                list_potential_pb.append(a.id)
+    list_potential_pb.reverse()
+    for id in list_potential_pb:
+        a=client.get_activity(id)
+        for effort in a.best_efforts:
+            if effort.distance==distance_km*1000:
+                if effort.moving_time<personal_best_time[-1]:
+                    personal_best_time.append(effort.moving_time)
+    return personal_best_time[1:]
+
+
+###############PLOTS################
 def scatter_average_bpm():
     avg_bpm=get_average_bpm()
     date=get_dates()
@@ -155,18 +193,28 @@ def plot_speed_trend():
     plot_speed = plt.plot(date,np.polyval(reg,range(len(date))),color='red')
     return plot_speed
 
+def scatter_efficiency():
+    average_speed=get_average_pace()
+    average_bpm=get_average_bpm()
+    date=get_dates()
+    efficiency=average_bpm/(average_speed)*60 #New metric: beats per km
+    scatter=plt.scatter(date,efficiency)
+    return scatter
+
+def plot_efficiency_trend():    
+    average_speed=get_average_pace()
+    average_bpm=get_average_bpm()
+    date=get_dates()
+    efficiency=average_bpm/(average_speed)*60 #New metric: beats per km
+    reg=np.polyfit(range(len(date)),efficiency,1)
+    print(reg)
+    plot_efficiency = plt.plot(date,np.polyval(reg,range(len(date))),color='red')
+    return plot_efficiency
+
 def scatter_average_bpm_with_speed():
     average_bpm=get_average_bpm()
     avg_speed=get_average_speed()
     avg_date=get_dates()
     scatter=plt.scatter(avg_date,average_bpm,c=avg_speed,cmap='viridis',vmin=8, vmax=17)
     return scatter
-
-plot_speed_trend()
-scatter_average_speed()
-plt.xlabel('Date')
-plt.ylabel('Average speed (km/h)')
-plt.title('Average speed over time')
-plt.show()
-
 
