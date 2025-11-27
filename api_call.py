@@ -1,8 +1,14 @@
 import json
 import time
+import os
+import warnings
+warnings.filterwarnings('ignore', message='No rates present in response headers')
 from stravalib import Client
-import requests
 
+
+os.environ['SILENCE_TOKEN_WARNINGS'] = 'True'
+
+# Initialize Strava client
 client = Client()
 
 # File to store tokens (access, refresh, expiration)
@@ -39,13 +45,15 @@ def refresh_if_needed(tokens):
     tokens["expires_at"] = new_tokens["expires_at"]
 
     save_tokens(tokens)
-    print("Token rafraîchi ✔️")
+    print("Token refreshed")
 
     return tokens
 
 tokens = load_tokens()
 tokens = refresh_if_needed(tokens)
 
+# Re-initialize client with valid access token
+# The client contains now all my running data
 client = Client(access_token=tokens["access_token"])
 
 
