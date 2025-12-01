@@ -49,7 +49,6 @@ def total_distance_km():
 
 #Faster versions using a built-in function in stravalib
 #Do not exclude short activities (less than 20 minutes)
-#Permit to limit the number of API calls (limited to 100 per 15 minutes)
 def number_of_activities_bis():
     activities_count=client.get_athlete_stats().all_run_totals.count
     return activities_count
@@ -218,3 +217,55 @@ def scatter_average_bpm_with_speed():
     scatter=plt.scatter(avg_date,average_bpm,c=avg_speed,cmap='viridis',vmin=8, vmax=17)
     return scatter
 
+def scatter_average_bpm_speed():
+    average_bpm=get_average_bpm()
+    avg_speed=get_average_speed()
+    elevation_gain=get_elevation_gain()
+    scatter=plt.scatter(avg_speed,average_bpm,c=elevation_gain,cmap='plasma')
+    return scatter
+
+def plot_average_bpm_speed_trend(altitude_gain_limit=100):    
+    average_bpm=get_average_bpm()
+    avg_speed=get_average_speed()
+    elevation_gain=get_elevation_gain()
+    #Filter to keep only runs with elevation gain below a certain limit
+    filtered_avg_speed=[avg_speed[i] for i in range(len(elevation_gain)) if elevation_gain[i]<altitude_gain_limit]
+    filtered_average_bpm=[average_bpm[i] for i in range(len(elevation_gain)) if elevation_gain[i]<altitude_gain_limit]
+    reg=np.polyfit(avg_speed,average_bpm,1)
+    reg_flat=np.polyfit(filtered_avg_speed,filtered_average_bpm,1)
+    print(print(np.corrcoef(avg_speed, average_bpm)))
+    print(np.corrcoef(filtered_avg_speed, filtered_average_bpm))
+    plot_bpm_speed = plt.plot(avg_speed,np.polyval(reg,avg_speed),color='red')
+    plot_bpm_speed_flat = plt.plot(filtered_avg_speed,np.polyval(reg_flat,filtered_avg_speed),color='green')
+    plt.legend(['Run','All runs trend','Low elevation runs trend'])
+    return plot_bpm_speed
+
+
+corr_coefficients=[]
+for alt_gain_limit in [40*i for i in range(50)]:
+    plt.figure()
+    average_bpm=get_average_bpm()
+    avg_speed=get_average_speed()
+    elevation_gain=get_elevation_gain()
+    #Filter to keep only runs with elevation gain below a certain limit
+    filtered_avg_speed=[avg_speed[i] for i in range(len(elevation_gain)) if elevation_gain[i]<alt_gain_limit]
+    filtered_average_bpm=[average_bpm[i] for i in range(len(elevation_gain)) if elevation_gain[i]<alt_gain_limit]
+    corr_coefficients.append(np.corrcoef(filtered_avg_speed, filtered_average_bpm)[0,1])
+    
+plt.plot([10*i for i in range(200)],corr_coefficients)
+plt.xlabel('Elevation Gain Limit (m)')
+plt.ylabel('Correlation Coefficient between Average Speed and Average BPM')
+plt.title('Correlation vs Elevation Gain Limit')
+plt.savefig('./Results/corr_coefficients.png', dpi=300)
+plt.show()
+
+
+plt.figure()
+scatter_average_bpm_speed()
+plot_average_bpm_speed_trend(altitude_gain_limit=50)
+plt.title('Average Heart Rate vs Average Speed')
+plt.colorbar(label='Elevation Gain (m)')
+plt.xlabel('Average Speed (km/h)')
+plt.ylabel('Average Heart Rate (bpm)')
+plt.savefig('./Results/average_bpm_speed.png', dpi=300)
+plt.show()
