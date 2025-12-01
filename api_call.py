@@ -13,7 +13,7 @@ client = Client()
 
 # File to store tokens (access, refresh, expiration)
 # Tokens are given with your strava application
-TOKEN_FILE = "../tokens.json"
+TOKEN_FILE = "tokens.json"
 
 # Load tokens from json file
 # Store it

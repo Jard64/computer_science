@@ -2,8 +2,10 @@ import sqlite3
 from api_call import client
 import json
 from tqdm import tqdm
+from datetime import datetime
 
-conn = sqlite3.connect("sqlite_activity_database_copy.db")
+
+conn = sqlite3.connect("sqlite_activity_database.db")
 cursor = conn.cursor()
 
 # Columns of activity table
@@ -194,6 +196,13 @@ def get_api_call_stats():
         WHERE timestamp > datetime('now', '-1 day')
         GROUP BY endpoint;
     """).fetchall()
+
+    result_15 = cursor.execute("""
+        SELECT endpoint, COUNT(*) as count 
+        FROM api_calls 
+        WHERE timestamp > datetime('now', '-15 minutes')
+        GROUP BY endpoint;
+    """).fetchall()
     
     print("\n=== API Calls in last 24h ===")
     total = 0
@@ -202,6 +211,22 @@ def get_api_call_stats():
         total += count
     print(f"TOTAL: {total} calls")
     print(f"Remaining today: {1000 - total} calls")
+
+    print("\n=== API Calls in last 15 minutes ===")
+    total = 0
+    now = datetime.now()
+    current_minute = now.minute
+    current_hour = now.hour
+    next_quarter = ((current_minute //15)+1)*15 %60
+    current_hour=+1 if next_quarter==0 else current_hour
+    current_hour=current_hour%24
+    text_time=f"{current_hour:02d}:{next_quarter:02d}"
+    for endpoint, count in result_15:
+        print(f"{endpoint}: {count} calls")
+        total += count
+    print(f"TOTAL: {total} calls")
+    print("Remaining until " +text_time +f": {100 - total} calls")
+
 
 
 if __name__ == "__main__":
