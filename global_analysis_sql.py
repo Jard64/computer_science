@@ -497,7 +497,8 @@ def plot_running_effectiveness_trend():
 # ============== USE CASES ==============
 
 if __name__ == "__main__":
-    
+
+
     # Exemple de graphique
     
     plt.figure()

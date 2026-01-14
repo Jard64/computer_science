@@ -6,6 +6,7 @@ Handles time-series analysis, windowing, clustering, and GAP model regression.
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.metrics import r2_score
 import sqlite3
 import json
 import numpy as np
@@ -236,7 +237,7 @@ def windowed_normalized_average_efficiency():
 # REGRESSION AND MODELING FUNCTIONS
 # ============================================================================
 
-def efficiency_regression_polynomial(regression_degree):
+def efficiency_regression_polynomial(regression_degree,return_true_values=False):
     """
     Compute Grade Adjusted Pace (GAP) model using polynomial regression.
     Creates a metric independent of elevation gain.
@@ -260,23 +261,27 @@ def efficiency_regression_polynomial(regression_degree):
     # Polynomial regression
     coeffs = np.polyfit(clean_gradient, clean_efficiency, regression_degree)
     poly_function = np.poly1d(coeffs)  # Use poly1d, not Polynomial
-    
-    return poly_function
+
+    if not return_true_values:
+        return poly_function
+    else:
+        return poly_function,clean_efficiency,clean_gradient
 
 
 
-def efficiency_regression_spline():
+def efficiency_regression_spline(return_true_values=False,smoothing=0.0):
     """
     Compute Grade Adjusted Pace (GAP) model using cubic B-spline regression.
     Creates a metric independent of elevation gain.
-    
+    Do not use that function for the moment, need to smooth and reduce noise on the measurements
+    Way of improvement: gaussian_kde, use weight for make_splrep
     Args:
     
     Returns:
         B-spline function
 
     """
-        # Get windowed data
+    # Get windowed data
     _, gradient_data, _ = global_windowed_average()
     efficiency_data = windowed_normalized_average_efficiency()
     
@@ -285,17 +290,27 @@ def efficiency_regression_spline():
     clean_efficiency = efficiency_data[mask]
     clean_gradient = gradient_data[mask]
     
-    indices_sorted_clean_gradient=np.argsort(clean_gradient)
+    # Remove duplicates values of Gradient
+    reverse_clean_gradient=clean_gradient[::-1]
+
+
+    # Sort the values of gradient and remove duplicates
+    clean_gradient=clean_gradient[::-1]
+    clean_efficiency[::-1]
+    sorted_clean_gradient,indices_sorted_clean_gradient=np.unique(clean_gradient,return_index=True)
     sorted_clean_efficiency=clean_efficiency[indices_sorted_clean_gradient]
-    sorted_clean_gradient=clean_gradient[indices_sorted_clean_gradient]
+   
 
-    # Polynomial regression - CORRECTED
+    # Polynomial regression
     standard_dev=clean_efficiency.std()
-    bspline = interpolate.make_splrep(sorted_clean_gradient,sorted_clean_efficiency)
+
+    bspline = interpolate.make_splrep(sorted_clean_gradient,sorted_clean_efficiency,s=smoothing)
     
 
-    
-    return bspline
+    if not return_true_values:
+        return bspline
+    else:
+        return bspline,sorted_clean_efficiency,sorted_clean_gradient
 
 
 
@@ -349,6 +364,29 @@ def scatter_centers(data_x, data_y, n_clusters=5):
     for i, center in enumerate(centroids):
         plt.scatter(center[0], center[1], 
                    color=COLORS[i], marker='X', s=200)
+        
+# ============================================================================
+# REGRESSION QUALITY
+# ============================================================================
+
+def regression_quality(regression='polynomial',regression_degree=2,smoothing=0.0):
+    """
+    Determine quality of the regression using the R squared score
+    
+    Args:
+        regression: {"polynomial","spline"}, the type of regression
+        regression_degree: The number of degree for the polynomial regression 
+    """
+    if regression=='polynomial':
+        f_pred,y_true,x_true=efficiency_regression_polynomial(regression_degree=regression_degree,return_true_values=True)
+        y_pred=np.array([f_pred(x) for x in x_true])
+        score=r2_score(y_true,y_pred)
+        return score
+    elif regression=='spline':
+        f_pred,y_true,x_true=efficiency_regression_polynomial(regression_degree=regression_degree,return_true_values=True,smoothing=smoothing)
+        y_pred=np.array([f_pred.__call__(x) for x in x_true])
+        score=r2_score(y_true,y_pred)
+        return score
 
 
 # ============================================================================
@@ -384,7 +422,7 @@ def plot_specific_activity(activity_id):
     print(f"Saved: {filename}")
 
 
-def plot_gap_model(regression='polynomial'):
+def plot_gap_model(regression='polynomial',smoothing=0):
     """
     Create plot showing GAP model regression results.
     """
@@ -399,21 +437,19 @@ def plot_gap_model(regression='polynomial'):
     if regression=='spline':
         
         # Compute regression (degree 2)
-        spline_function = efficiency_regression_spline()
-        
-
+        spline_function = efficiency_regression_spline(smoothing=smoothing)
         
         # Compute GAP adjustment factor
         # Normalize by flat terrain value (gradient = 0)
         gap_factor = spline_function 
-        origin_value= gap_factor.call(0)
-        gap_values = [(gap_factor.call(grad)/origin_value - 1) for grad in gradient_sorted]
+        origin_value= gap_factor.__call__(0)
+        gap_values = [(gap_factor.__call__(grad)/origin_value - 1) for grad in gradient_sorted]
         
 
     elif regression == 'polynomial':
         # Compute regression (degree 2)
         
-        spline_function = efficiency_regression_polynomial(regression_degree=2)
+        poly_function = efficiency_regression_polynomial(regression_degree=2)
         # Compute GAP adjustment factor
         # Normalize by flat terrain value (gradient = 0)
         gap_factor = poly_function / poly_function(0) - 1
@@ -434,9 +470,10 @@ def plot_gap_model(regression='polynomial'):
     plt.legend()
     plt.grid(True, alpha=0.3)
     
-    filename = "./Results/gap_model_regression.png"
+    filename = "./Results/gap_model_regression_"+regression+".png"
     plt.savefig(filename, dpi=150, bbox_inches='tight')
     print(f"Saved: {filename}")
+    return gap_values
 
     
 
@@ -448,33 +485,58 @@ def plot_gap_model(regression='polynomial'):
 if __name__ == "__main__":
 
 
-    date_semi="2025-12-06"
-    id_semi=ids_from_dates([date_semi])[0]
-    _,gradient_data,_=global_windowed_average()
-    poly_function = efficiency_regression_polynomial(regression_degree=2)
-    efficiency_data = windowed_normalized_average_efficiency()
-    gradient_sorted = np.sort(gradient_data)
-    speed,distance=activity_stream(id_semi,'velocity_smooth')
-    time,distance=activity_stream(id_semi,'time')
-    gradient,distance=activity_stream(id_semi,'grade_smooth')
-    speed=[s*3.6 for s in speed]  #convert m/s to km/h
+    # date_semi="2025-12-06"
+    # print(date_semi)
+    # id_semi=ids_from_dates([date_semi])[0]
+    # _,gradient_data,_=global_windowed_average()
+    # poly_function = efficiency_regression_polynomial(regression_degree=2)
+    # efficiency_data = windowed_normalized_average_efficiency()
+    # gradient_sorted = np.sort(gradient_data)
+    # speed,distance=activity_stream(id_semi,'velocity_smooth')
+    # time,distance=activity_stream(id_semi,'time')
+    # gradient,distance=activity_stream(id_semi,'grade_smooth')
+    # speed=[s*3.6 for s in speed]  #convert m/s to km/h
 
-    gap_factor = poly_function / poly_function(0) - 1
-    gap_values=np.array([gap_factor(grad) for grad in gradient])
-    mean_speed=np.mean(speed)
-    adjusted_speed=speed*(1+gap_values)
+    # gap_factor = poly_function / poly_function(0) - 1
+    # gap_values=np.array([gap_factor(grad) for grad in gradient])
+    # mean_speed=np.mean(speed)
+    # adjusted_speed=speed*(1+gap_values)
 
-    mean_adjusted_speed=np.mean(adjusted_speed)
-    mean_adjusted_pace=60/mean_adjusted_speed
-    mean_pace=60/mean_speed
-    print(str(int(mean_adjusted_pace))+":"+str((mean_adjusted_pace-int(mean_adjusted_pace))*0.6)[2:5])
-    print(str(int(mean_pace))+":"+str((mean_pace-int(mean_pace))*0.6)[2:5])
+    # mean_adjusted_speed=np.mean(adjusted_speed)
+    # mean_adjusted_pace=60/mean_adjusted_speed
+    # mean_pace=60/mean_speed
+    # print(str(int(mean_adjusted_pace))+":"+str((mean_adjusted_pace-int(mean_adjusted_pace))*0.6)[2:5])
+    # print(str(int(mean_pace))+":"+str((mean_pace-int(mean_pace))*0.6)[2:5])
 
 
+    # date_course="2025-06-29"
+    # print()
+    # print(date_course)
+    # id_semi=ids_from_dates([date_course])[0]
+    # _,gradient_data,_=global_windowed_average()
+    # poly_function = efficiency_regression_polynomial(regression_degree=2)
+    # efficiency_data = windowed_normalized_average_efficiency()
+    # gradient_sorted = np.sort(gradient_data)
+    # speed,distance=activity_stream(id_semi,'velocity_smooth')
+    # time,distance=activity_stream(id_semi,'time')
+    # gradient,distance=activity_stream(id_semi,'grade_smooth')
+    # speed=[s*3.6 for s in speed]  #convert m/s to km/h
+
+    # gap_factor = poly_function / poly_function(0) - 1
+    # gap_values=np.array([gap_factor(grad) for grad in gradient])
+    # mean_speed=np.mean(speed)
+    # adjusted_speed=speed*(1+gap_values)
     
-    # Plot GAP model
-    plot_gap_model(regression='spline')
+    # mean_adjusted_speed=np.mean(adjusted_speed)
+    # mean_adjusted_pace=60/mean_adjusted_speed
+    # mean_pace=60/mean_speed
+    # print(str(int(mean_adjusted_pace))+":"+str((mean_adjusted_pace-int(mean_adjusted_pace))*0.6)[2:5])
+    # print(str(int(mean_pace))+":"+str((mean_pace-int(mean_pace))*0.6)[2:5])
     
+
+
+    plot_gap_model(regression='spline',smoothing=1)
+      
     
 
 

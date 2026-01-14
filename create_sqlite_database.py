@@ -12,7 +12,7 @@ cursor = conn.cursor()
 LIST_ACTIVITY_DATA_TYPES = ['distance', 'moving_time', 'total_elevation_gain',
                              'average_speed', 'max_speed', 'average_cadence',
                              'average_watts', 'kilojoules', 'has_heartrate', 
-                             'average_heartrate', 'max_heartrate', 'elev_high', 'elev_low']
+                             'average_heartrate', 'max_heartrate', 'elev_high', 'elev_low','start_latlng','end_latlng']
 
 STREAM_TYPES = ['time', 'distance', 'heartrate', 'altitude', 'cadence', 
                 'grade_smooth', 'velocity_smooth', 'watts']
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS activity (
     id INTEGER PRIMARY KEY,
     sport_type TEXT,
     name TEXT,
-    start_date TEXT
+    start_date_local TEXT
 );
 """)
 
@@ -102,10 +102,17 @@ def insert_activity_data():
                 try:
                     activity_data_value = getattr(activity, activity_data_type)
                     if activity_data_value is not None:
-                        cursor.execute(f"""
-                            UPDATE activity SET {activity_data_type} = ? WHERE id = ?;
-                        """, (float(activity_data_value) if activity_data_value else None, 
-                              activity_id))
+                        try:
+                            cursor.execute(f"""
+                                UPDATE activity SET {activity_data_type} = ? WHERE id = ?;
+                            """, (float(activity_data_value) if activity_data_value else None, 
+                                activity_id))
+                        except TypeError:
+                            if type(activity_data_value)=='LatLon':
+                                cursor.execute(f"""
+                                    UPDATE activity SET {activity_data_type} = ? WHERE id = ?;
+                                """, ((activity_data_value) if activity_data_value else None, 
+                                    activity_id))
                     else:
                         needs_detailed_fetch = True
                 except AttributeError:
